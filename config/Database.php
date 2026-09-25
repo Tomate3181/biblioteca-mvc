@@ -1,23 +1,30 @@
 <?php
 
-class Database {
-    private static $host = 'localhost';
-    private static $dbname = 'biblioteca';
-    private static $username = 'root';
-    private static $password = '';
-    private static $conn = null;
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'biblioteca');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_CHARSET', 'utf8mb4');
 
-    public static function getConnection() {
-        if (self::$conn === null) {
-            try {
-                $dsn = "mysql:host=" . self::$host . ";dbname=" . self::$dbname . ";charset=utf8mb4";
-                self::$conn = new PDO($dsn, self::$username, self::$password);
-                self::$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                self::$conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-            } catch (PDOException $e) {
-                die("Erro na conexão: " . $e->getMessage());
-            }
+function getConnection(): PDO
+{
+    static $pdo = null;
+
+    if ($pdo === null) {
+        $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+
+        try {
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        } catch (PDOException $e) {
+            die("Erro ao conectar ao banco de dados: " . $e->getMessage());
         }
-        return self::$conn;
     }
+
+    return $pdo;
 }

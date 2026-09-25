@@ -2,74 +2,132 @@
 
 require_once __DIR__ . '/../models/Livro.php';
 
-class LivroController {
+/**
+ * Controller de Livros — recebe as ações da rota e coordena Model ↔ View.
+ */
+class LivroController
+{
+    /**
+     * Lista todos os livros (com suporte a busca).
+     */
+    public function index(): void
+    {
+        $busca = trim($_GET['busca'] ?? '');
 
-    public function index() {
-        $busca = $_GET['busca'] ?? '';
-        if ($busca) {
+        if ($busca !== '') {
             $livros = Livro::buscar($busca);
         } else {
             $livros = Livro::listarTodos();
         }
-        include __DIR__ . '/../views/livro/index.php';
+
+        // Estatísticas para o painel
+        $totalLivros = Livro::contarTotal();
+        $totalExemplares = Livro::contarExemplares();
+        $totalIndisponiveis = Livro::contarIndisponiveis();
+
+        require __DIR__ . '/../views/livro/index.php';
     }
 
-    public function criar() {
-        include __DIR__ . '/../views/livro/form.php';
+    /**
+     * Exibe o formulário de cadastro.
+     */
+    public function criar(): void
+    {
+        $erros = $_SESSION['erros'] ?? [];
+        $dados = $_SESSION['dados'] ?? [];
+        unset($_SESSION['erros'], $_SESSION['dados']);
+
+        require __DIR__ . '/../views/livro/criar.php';
     }
 
-    public function editar() {
-        $id = $_GET['id'] ?? null;
-        $livro = null;
-        
-        if ($id) {
-            $livro = Livro::buscarPorId($id);
-        }
-        
-        include __DIR__ . '/../views/livro/form.php';
-    }
-
-    public function salvar() {
+    /**
+     * Processa o cadastro de um novo livro.
+     */
+    public function salvar(): void
+    {
         $livro = new Livro();
-        
-        if (!empty($_POST['id'])) {
-            $livro->setId($_POST['id']);
-        }
-        
         $livro->setTitulo($_POST['titulo'] ?? '');
         $livro->setAutor($_POST['autor'] ?? '');
         $livro->setGenero($_POST['genero'] ?? '');
-        $livro->setAnoPublicacao((int) ($_POST['ano_publicacao'] ?? 0));
+        $livro->setAno((int) ($_POST['ano'] ?? 0));
         $livro->setQuantidade((int) ($_POST['quantidade'] ?? 0));
 
-        if ($livro->validar()) {
-            $livro->salvar();
+        if ($livro->inserir()) {
+            $_SESSION['mensagem'] = 'Livro cadastrado com sucesso!';
+            $_SESSION['tipo_mensagem'] = 'sucesso';
+            header('Location: index.php');
+        } else {
+            $_SESSION['erros'] = $livro->getErros();
+            $_SESSION['dados'] = $_POST;
+            header('Location: index.php?acao=criar');
+        }
+        exit;
+    }
+
+    /**
+     * Exibe o formulário de edição.
+     */
+    public function editar(): void
+    {
+        $id = (int) ($_GET['id'] ?? 0);
+        $livro = Livro::buscarPorId($id);
+
+        if (!$livro) {
+            $_SESSION['mensagem'] = 'Livro não encontrado.';
+            $_SESSION['tipo_mensagem'] = 'erro';
             header('Location: index.php');
             exit;
         }
 
-        $errors = $livro->getErrors();
-        include __DIR__ . '/../views/livro/form.php';
+        $erros = $_SESSION['erros'] ?? [];
+        $dados = $_SESSION['dados'] ?? $livro;
+        unset($_SESSION['erros'], $_SESSION['dados']);
+
+        require __DIR__ . '/../views/livro/editar.php';
     }
 
-    public function excluir() {
-        $id = $_GET['id'] ?? null;
-        $livro = null;
-        
-        if ($id) {
-            $livro = Livro::buscarPorId($id);
+    /**
+     * Processa a atualização de um livro.
+     */
+    public function atualizar(): void
+    {
+        $id = (int) ($_POST['id'] ?? 0);
+
+        $livro = new Livro();
+        $livro->setId($id);
+        $livro->setTitulo($_POST['titulo'] ?? '');
+        $livro->setAutor($_POST['autor'] ?? '');
+        $livro->setGenero($_POST['genero'] ?? '');
+        $livro->setAno((int) ($_POST['ano'] ?? 0));
+        $livro->setQuantidade((int) ($_POST['quantidade'] ?? 0));
+
+        if ($livro->atualizar()) {
+            $_SESSION['mensagem'] = 'Livro atualizado com sucesso!';
+            $_SESSION['tipo_mensagem'] = 'sucesso';
+            header('Location: index.php');
+        } else {
+            $_SESSION['erros'] = $livro->getErros();
+            $_SESSION['dados'] = $_POST;
+            header('Location: index.php?acao=editar&id=' . $id);
         }
-        
-        include __DIR__ . '/../views/livro/confirmar_exclusao.php';
+        exit;
     }
 
-    public function confirmarExclusao() {
-        $id = $_POST['id'] ?? null;
-        
-        if ($id) {
-            Livro::excluir($id);
+    /**
+     * Exclui um livro (a confirmação é feita via JS no front-end).
+     */
+    public function excluir(): void
+    {
+        $id = (int) ($_GET['id'] ?? 0);
+
+        if ($id > 0 && Livro::excluir($id)) {
+            $_SESSION['mensagem'] = 'Livro excluído com sucesso!';
+            $_SESSION['tipo_mensagem'] = 'sucesso';
+        } else {
+            $_SESSION['mensagem'] = 'Erro ao excluir o livro.';
+            $_SESSION['tipo_mensagem'] = 'erro';
         }
-        
+
         header('Location: index.php');
         exit;
     }

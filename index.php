@@ -1,30 +1,23 @@
 <?php
+/**
+ * Ponto de entrada da aplicação (Front Controller).
+ * Redireciona as ações para o LivroController.
+ */
+
+session_start();
 
 require_once __DIR__ . '/controllers/LivroController.php';
 
-$acao = $_GET['acao'] ?? 'index';
 $controller = new LivroController();
 
-switch ($acao) {
-    case 'index':
-        $controller->index();
-        break;
-    case 'criar':
-        $controller->criar();
-        break;
-    case 'editar':
-        $controller->editar();
-        break;
-    case 'salvar':
-        $controller->salvar();
-        break;
-    case 'excluir':
-        $controller->excluir();
-        break;
-    case 'confirmarExclusao':
-        $controller->confirmarExclusao();
-        break;
-    default:
-        $controller->index();
-        break;
-}
+// Ação solicitada via query string (?acao=...)
+$acao = $_GET['acao'] ?? 'index';
+
+match ($acao) {
+    'criar' => $controller->criar(),
+    'salvar' => $controller->salvar(),
+    'editar' => $controller->editar(),
+    'atualizar' => $controller->atualizar(),
+    'excluir' => $controller->excluir(),
+    default => $controller->index(),
+};
